@@ -119,7 +119,18 @@ class JwtAuthentication
         }
 
         /* If token cannot be decoded return with 401 Unauthorized. */
-        if (false === $decoded = $this->decodeToken($token)) {
+        $i = 0;
+        if (is_array($this->options['secret'])) {
+            foreach ($this->options['secret'] as $secret) {
+                if(false !== $decoded = $this->decodeToken($token, $secret)) {
+                    break;   
+                }
+                $i++;
+            }
+        } else {
+            $decoded = $this->decodeToken($token, $this->options['secret']);
+        }
+        if (false === $decoded) {
             return $this->error($request, $response, [
                 "message" => $this->message,
                 "token" => $token
@@ -128,7 +139,7 @@ class JwtAuthentication
 
         /* If callback returns false return with 401 Unauthorized. */
         if (is_callable($this->options["callback"])) {
-            $params = ["decoded" => $decoded];
+            $params = ["decoded" => $decoded, "secret" => $i];
             if (false === $this->options["callback"]($request, $response, $params)) {
                 return $this->error($request, $response, [
                     "message" => $this->message ? $this->message : "Callback returned false"
@@ -243,12 +254,12 @@ class JwtAuthentication
      * @param string $$token
      * @return object|boolean The JWT's payload as a PHP object or false in case of error
      */
-    public function decodeToken($token)
+    public function decodeToken($token, $secret)
     {
         try {
             return JWT::decode(
                 $token,
-                $this->options["secret"],
+                $secret,
                 (array) $this->options["algorithm"]
             );
         } catch (\Exception $exception) {
