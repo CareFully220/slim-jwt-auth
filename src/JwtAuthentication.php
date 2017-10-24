@@ -257,6 +257,7 @@ class JwtAuthentication
     public function decodeToken($token, $secret)
     {
         try {
+            $this->message = '';
             return JWT::decode(
                 $token,
                 $secret,
